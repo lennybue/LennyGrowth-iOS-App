@@ -74,6 +74,8 @@ struct ArticleCardView: View {
                             .if(article.isBookmarked) { $0.glow(color: .neonMagenta, radius: 6) }
                     }
                     .buttonStyle(.plain)
+                    .accessibilityLabel(article.isBookmarked ? "Lesezeichen entfernen" : "Lesezeichen hinzufügen")
+                    .accessibilityAddTraits(.isButton)
                 }
             }
             .padding(14)
@@ -84,5 +86,8 @@ struct ArticleCardView: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(Color.glassBorder, lineWidth: 1)
         )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("Artikel: \(article.title), \(article.readTimeMinutes) Minuten Lesezeit")
+        .accessibilityHint("Tippe zum Lesen")
     }
 }

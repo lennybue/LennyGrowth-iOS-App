@@ -22,11 +22,14 @@ model User {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  refreshTokens     RefreshToken[]
-  posts             Post[]
-  bookmarks         Bookmark[]
-  connectedAccounts ConnectedAccount[]
-  downloads         Download[]
+  refreshTokens        RefreshToken[]
+  posts                Post[]
+  bookmarks            Bookmark[]
+  connectedAccounts    ConnectedAccount[]
+  downloads            Download[]
+  passwordResetTokens  PasswordResetToken[]
+  deviceTokens         DeviceToken[]
+  mediaUploads         MediaUpload[]
 
   @@index([email])
 }
@@ -210,6 +213,59 @@ model ConnectedAccount {
 
   @@unique([userId, platform])
   @@index([userId])
+}
+
+// ─── Password Reset ───────────────────────────────────────────────────────────
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ─── Push Notifications ───────────────────────────────────────────────────────
+
+model DeviceToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  platform  String   @default("ios")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+// ─── Media Uploads ────────────────────────────────────────────────────────────
+
+model MediaUpload {
+  id           String   @id @default(cuid())
+  userId       String
+  postId       String?
+  url          String
+  thumbnailUrl String?
+  type         String   // image | video | gif
+  fileSize     Int
+  width        Int?
+  height       Int?
+  mimeType     String
+  storageKey   String   @unique
+  createdAt    DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([postId])
 }
 
 // ─── AI Usage ─────────────────────────────────────────────────────────────────

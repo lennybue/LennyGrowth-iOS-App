@@ -1,4 +1,5 @@
 import { prisma } from '../config/database.js'
+import * as socialService from './social.service.js'
 import type { PostResponse, PostMetricsResponse } from '../types/index.js'
 
 // ─── Serializer ───────────────────────────────────────────────────────────────
@@ -149,14 +150,28 @@ export async function publishPost(userId: string, id: string): Promise<PostRespo
   const existing = await prisma.post.findFirst({ where: { id, userId } })
   if (!existing) throw Object.assign(new Error('Post not found'), { statusCode: 404 })
 
-  const post = await prisma.post.update({
+  await prisma.post.update({
     where: { id },
     data: { status: 'publishing', updatedAt: new Date() },
-    include: postInclude,
   })
 
-  // In production: trigger immediate publish via LinkedIn/Threads API
-  // For now: mark as published
+  try {
+    const platformVariants = (existing.platformVariants ?? {}) as Record<string, string>
+    for (const platform of existing.platforms) {
+      if (platform === 'linkedin') {
+        await socialService.publishToLinkedIn(userId, existing.content, platformVariants)
+      } else if (platform === 'threads') {
+        await socialService.publishToThreads(userId, existing.content, platformVariants)
+      }
+    }
+  } catch (err) {
+    await prisma.post.update({
+      where: { id },
+      data: { status: 'failed', errorMessage: err instanceof Error ? err.message : 'Publish failed', updatedAt: new Date() },
+    })
+    throw err
+  }
+
   const published = await prisma.post.update({
     where: { id },
     data: { status: 'published', publishedAt: new Date(), updatedAt: new Date() },
@@ -193,8 +208,14 @@ export async function processScheduledPosts(): Promise<void> {
         data: { status: 'publishing', updatedAt: now },
       })
 
-      // TODO: call LinkedIn/Threads API via social service
-      // For now: mark as published
+      const platformVariants = (post.platformVariants ?? {}) as Record<string, string>
+      for (const platform of post.platforms) {
+        if (platform === 'linkedin') {
+          await socialService.publishToLinkedIn(post.userId, post.content, platformVariants)
+        } else if (platform === 'threads') {
+          await socialService.publishToThreads(post.userId, post.content, platformVariants)
+        }
+      }
       await prisma.post.update({
         where: { id: post.id },
         data: { status: 'published', publishedAt: now, updatedAt: now },

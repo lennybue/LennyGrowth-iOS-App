@@ -85,6 +85,9 @@ struct ProductCardView: View {
             RoundedRectangle(cornerRadius: 16, style: .continuous)
                 .strokeBorder(Color.glassBorder, lineWidth: 1)
         )
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel("\(product.name), \(product.isFree ? "Kostenlos" : product.formattedPrice)")
+        .accessibilityHint(isDownloaded ? "Bereits heruntergeladen" : "Tippe zum Herunterladen")
     }
 
     // MARK: - Sub-components
@@ -132,5 +135,7 @@ struct ProductCardView: View {
         .disabled(isDownloaded || isDownloading)
         .if(!isDownloaded && product.isFree) { $0.glow(color: .neonTeal, radius: 6) }
         .if(!isDownloaded && !product.isFree) { $0.glow(color: .neonMagenta, radius: 6) }
+        .accessibilityLabel(isDownloaded ? "Heruntergeladen" : (product.isFree ? "Kostenlos herunterladen" : "Kaufen für \(product.formattedPrice)"))
+        .accessibilityAddTraits(.isButton)
     }
 }

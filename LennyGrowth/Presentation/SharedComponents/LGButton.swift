@@ -15,6 +15,7 @@ struct LGButton: View {
     var icon: String? = nil
     var isLoading: Bool = false
     var isFullWidth: Bool = false
+    var accessibilityLabel: String? = nil
     let action: () -> Void
 
     var body: some View {
@@ -44,6 +45,9 @@ struct LGButton: View {
         .buttonStyle(.plain)
         .if(style == .primary) { $0.glow(color: .neonMagenta, radius: 8) }
         .if(style == .secondary) { $0.glow(color: .neonTeal, radius: 8) }
+        .accessibilityLabel(accessibilityLabel ?? title)
+        .accessibilityAddTraits(.isButton)
+        .accessibilityRemoveTraits(isLoading ? [] : [])
     }
 
     @ViewBuilder

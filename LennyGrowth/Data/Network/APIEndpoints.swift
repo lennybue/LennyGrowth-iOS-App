@@ -42,6 +42,16 @@ enum APIEndpoint {
     case aiCaption
     case aiVariations
 
+    // MARK: - Media
+    case mediaUpload
+    case deleteMedia(id: String)
+
+    // MARK: - Auth extras
+    case requestPasswordReset
+    case confirmPasswordReset
+    case registerDeviceToken
+    case unregisterDeviceToken
+
     // MARK: - User
     case userProfile
     case updateProfile
@@ -82,6 +92,14 @@ enum APIEndpoint {
         case .aiCaption:              return "/ai/caption"
         case .aiVariations:           return "/ai/variations"
 
+        case .mediaUpload:            return "/media/upload"
+        case .deleteMedia(let id):    return "/media/\(id)"
+
+        case .requestPasswordReset:   return "/auth/reset-password"
+        case .confirmPasswordReset:   return "/auth/reset-password/confirm"
+        case .registerDeviceToken:    return "/user/device-token"
+        case .unregisterDeviceToken:  return "/user/device-token"
+
         case .userProfile:            return "/user/profile"
         case .updateProfile:          return "/user/profile"
         case .userPurchases:          return "/user/purchases"
@@ -102,8 +120,10 @@ enum APIEndpoint {
             return .POST
         case .updatePost, .updateProfile:
             return .PUT
-        case .logout, .deletePost, .disconnectSocial:
+        case .logout, .deletePost, .disconnectSocial, .deleteMedia, .unregisterDeviceToken:
             return .DELETE
+        case .mediaUpload, .requestPasswordReset, .confirmPasswordReset, .registerDeviceToken:
+            return .POST
         }
     }
 

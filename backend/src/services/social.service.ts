@@ -127,6 +127,88 @@ export async function getDecryptedToken(userId: string, platform: Platform): Pro
   return decrypt(account.encryptedAccessToken)
 }
 
+// ─── Publishing ───────────────────────────────────────────────────────────────
+
+export async function publishToLinkedIn(
+  userId: string,
+  content: string,
+  platformVariants: Record<string, string>
+): Promise<{ platformPostId: string }> {
+  const accessToken = await getDecryptedToken(userId, 'linkedin')
+  if (!accessToken) throw Object.assign(new Error('LinkedIn-Konto nicht verbunden'), { statusCode: 400 })
+
+  const account = await prisma.connectedAccount.findUnique({ where: { userId_platform: { userId, platform: 'linkedin' } } })
+  if (!account?.platformUserId) throw Object.assign(new Error('LinkedIn platformUserId fehlt'), { statusCode: 400 })
+
+  const text = platformVariants['linkedin'] ?? content
+
+  const res = await fetch('https://api.linkedin.com/v2/ugcPosts', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      'Content-Type': 'application/json',
+      'X-Restli-Protocol-Version': '2.0.0',
+    },
+    body: JSON.stringify({
+      author: `urn:li:person:${account.platformUserId}`,
+      lifecycleState: 'PUBLISHED',
+      specificContent: {
+        'com.linkedin.ugc.ShareContent': {
+          shareCommentary: { text },
+          shareMediaCategory: 'NONE',
+        },
+      },
+      visibility: { 'com.linkedin.ugc.MemberNetworkVisibility': 'PUBLIC' },
+    }),
+  })
+
+  if (!res.ok) {
+    const body = await res.text()
+    throw Object.assign(new Error(`LinkedIn API-Fehler: ${res.status} ${body}`), { statusCode: 502 })
+  }
+
+  const data = await res.json() as any
+  return { platformPostId: data.id ?? 'unknown' }
+}
+
+export async function publishToThreads(
+  userId: string,
+  content: string,
+  platformVariants: Record<string, string>
+): Promise<{ platformPostId: string }> {
+  const accessToken = await getDecryptedToken(userId, 'threads')
+  if (!accessToken) throw Object.assign(new Error('Threads-Konto nicht verbunden'), { statusCode: 400 })
+
+  const account = await prisma.connectedAccount.findUnique({ where: { userId_platform: { userId, platform: 'threads' } } })
+  if (!account?.platformUserId) throw Object.assign(new Error('Threads platformUserId fehlt'), { statusCode: 400 })
+
+  const text = platformVariants['threads'] ?? content
+  const threadUserId = account.platformUserId
+
+  // Step 1: Create container
+  const containerRes = await fetch(
+    `https://graph.threads.net/v1.0/${threadUserId}/threads?media_type=TEXT&text=${encodeURIComponent(text)}&access_token=${accessToken}`,
+    { method: 'POST' }
+  )
+  if (!containerRes.ok) {
+    const body = await containerRes.text()
+    throw Object.assign(new Error(`Threads Container-Fehler: ${containerRes.status} ${body}`), { statusCode: 502 })
+  }
+  const containerData = await containerRes.json() as any
+
+  // Step 2: Publish container
+  const publishRes = await fetch(
+    `https://graph.threads.net/v1.0/${threadUserId}/threads_publish?creation_id=${containerData.id}&access_token=${accessToken}`,
+    { method: 'POST' }
+  )
+  if (!publishRes.ok) {
+    const body = await publishRes.text()
+    throw Object.assign(new Error(`Threads Publish-Fehler: ${publishRes.status} ${body}`), { statusCode: 502 })
+  }
+  const publishData = await publishRes.json() as any
+  return { platformPostId: publishData.id ?? 'unknown' }
+}
+
 // ─── LinkedIn OAuth ───────────────────────────────────────────────────────────
 
 async function exchangeLinkedInCode(authCode: string): Promise<{

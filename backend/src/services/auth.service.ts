@@ -1,7 +1,9 @@
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { createRemoteJWKSet, jwtVerify } from 'jose'
 import { prisma } from '../config/database.js'
 import { env } from '../config/env.js'
+import * as emailService from './email.service.js'
 import type { UserResponse, AuthResponse, ConnectedAccountResponse } from '../types/index.js'
 
 const BCRYPT_ROUNDS = 12
@@ -83,6 +85,8 @@ export async function registerUser(
 
   const { refreshToken } = generateTokens(fastify, user.id, user.email, user.subscriptionTier)
   await storeRefreshToken(user.id, refreshToken)
+  // Non-blocking welcome email
+  emailService.sendWelcomeEmail(user.email, user.displayName).catch(console.error)
   return buildAuthResponse(fastify, user, refreshToken)
 }
 
@@ -206,10 +210,28 @@ export async function deleteUser(userId: string): Promise<void> {
   await prisma.user.delete({ where: { id: userId } })
 }
 
-export async function resetPassword(email: string): Promise<void> {
-  // In production: send reset email via SES/SendGrid
-  // For now: verify email exists
+export async function requestPasswordReset(email: string): Promise<void> {
   const user = await prisma.user.findUnique({ where: { email: email.toLowerCase() } })
   if (!user) return // Don't reveal whether email exists
-  // TODO: generate reset token, send email
+
+  // Invalidate any existing tokens
+  await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } })
+
+  const token     = crypto.randomBytes(32).toString('hex')
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000) // 1 hour
+  await prisma.passwordResetToken.create({ data: { token, userId: user.id, expiresAt } })
+  await emailService.sendPasswordResetEmail(user.email, token, user.displayName)
+}
+
+export async function confirmPasswordReset(token: string, newPassword: string): Promise<void> {
+  const record = await prisma.passwordResetToken.findUnique({ where: { token } })
+  if (!record || record.used || record.expiresAt < new Date()) {
+    throw Object.assign(new Error('Ungültiger oder abgelaufener Reset-Token'), { statusCode: 400 })
+  }
+
+  const passwordHash = await bcrypt.hash(newPassword, BCRYPT_ROUNDS)
+  await prisma.user.update({ where: { id: record.userId }, data: { passwordHash } })
+  await prisma.passwordResetToken.update({ where: { token }, data: { used: true } })
+  // Revoke all refresh tokens for security
+  await prisma.refreshToken.deleteMany({ where: { userId: record.userId } })
 }

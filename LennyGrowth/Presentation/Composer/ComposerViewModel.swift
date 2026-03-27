@@ -17,6 +17,12 @@ final class ComposerViewModel: ObservableObject {
     @Published var draftPosts: [Post] = []
     @Published var isLoadingQueue: Bool = false
 
+    // MARK: - Media
+    @Published var mediaItems: [MediaItem] = []
+
+    // MARK: - Preview
+    @Published var showPostPreview: Bool = false
+
     // MARK: - Warnings / Alerts
     @Published var showLinkWarning: Bool = false
     @Published var showHashtagWarning: Bool = false
@@ -95,6 +101,15 @@ final class ComposerViewModel: ObservableObject {
     func applyGeneratedContent(_ text: String) {
         content = text
         validateContent()
+    }
+
+    func addMediaItem(_ item: MediaItem) {
+        guard mediaItems.count < 4 else { return }
+        mediaItems.append(item)
+    }
+
+    func removeMediaItem(id: String) {
+        mediaItems.removeAll { $0.id == id }
     }
 
     func saveDraft() async {

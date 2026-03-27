@@ -23,6 +23,16 @@ const envSchema = z.object({
   THREADS_APP_SECRET: z.string().optional(),
   THREADS_REDIRECT_URI: z.string().optional(),
   ALLOWED_ORIGINS: z.string().default(''),
+  // Email (Resend)
+  RESEND_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().default('noreply@lennardbuessow.digital'),
+  APP_URL: z.string().default('https://lennardbuessow.digital'),
+  // Media storage (Cloudflare R2 / S3-compatible)
+  R2_ACCOUNT_ID: z.string().optional(),
+  R2_ACCESS_KEY_ID: z.string().optional(),
+  R2_SECRET_ACCESS_KEY: z.string().optional(),
+  R2_BUCKET_NAME: z.string().optional(),
+  R2_PUBLIC_URL: z.string().optional(),
 })
 
 function loadEnv() {

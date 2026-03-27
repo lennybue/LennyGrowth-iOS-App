@@ -4,13 +4,17 @@ import SwiftUI
 struct LennyGrowthApp: App {
     @StateObject private var container = DependencyContainer()
     @StateObject private var authViewModel: AuthViewModel
+    @StateObject private var storeKitManager  = StoreKitManager()
+    @StateObject private var notificationMgr  = NotificationManager.shared
+    @StateObject private var deepLinkHandler  = DeepLinkHandler()
+    @StateObject private var oauthHandler     = OAuthCallbackHandler()
+
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     init() {
-        // Auth is constructed independently so it's available before container is fully wired.
-        // Uses the same keychain instance as the container.
-        let keychain = KeychainWrapper()
-        let tokenManager = TokenManager(keychain: keychain)
-        let client = APIClient(tokenManager: tokenManager)
+        let keychain      = KeychainWrapper()
+        let tokenManager  = TokenManager(keychain: keychain)
+        let client        = APIClient(tokenManager: tokenManager)
         let authRepo: any AuthRepositoryProtocol
 
         switch AppEnvironment.current {
@@ -32,28 +36,53 @@ struct LennyGrowthApp: App {
                 .environmentObject(authViewModel)
                 .environmentObject(container.networkMonitor)
                 .environmentObject(container.syncCoordinator)
+                .environmentObject(storeKitManager)
+                .environmentObject(notificationMgr)
+                .environmentObject(deepLinkHandler)
+                .environmentObject(oauthHandler)
                 .preferredColorScheme(.dark)
                 .task { await authViewModel.restoreSession() }
+                .task { await storeKitManager.checkEntitlements() }
+                .onOpenURL { url in
+                    if url.scheme == "lennygrowth" {
+                        deepLinkHandler.handle(url)
+                    } else if url.host == "lennardbuessow.digital" {
+                        deepLinkHandler.handleUniversalLink(url)
+                    }
+                }
         }
     }
 }
 
-// MARK: - Root view (auth gate + offline banner)
+// MARK: – Root view (onboarding gate + auth gate + offline banner)
 
 struct RootView: View {
-    @EnvironmentObject private var authViewModel: AuthViewModel
-    @EnvironmentObject private var networkMonitor: NetworkMonitor
+    @EnvironmentObject private var authViewModel:   AuthViewModel
+    @EnvironmentObject private var networkMonitor:  NetworkMonitor
     @EnvironmentObject private var syncCoordinator: SyncCoordinator
+    @EnvironmentObject private var deepLinkHandler: DeepLinkHandler
+
+    @AppStorage("hasCompletedOnboarding") private var hasCompletedOnboarding = false
 
     var body: some View {
         ZStack(alignment: .top) {
             Group {
-                if authViewModel.isAuthenticated {
+                if !hasCompletedOnboarding {
+                    OnboardingView(onComplete: { hasCompletedOnboarding = true })
+                } else if authViewModel.isAuthenticated {
                     MainTabView()
+                        .onReceive(deepLinkHandler.$pendingTab.compacted()) { tab in
+                            // Forward to MainTabView via notification
+                            NotificationCenter.default.post(
+                                name: .navigateToTab,
+                                object: tab
+                            )
+                        }
                 } else {
                     AuthView()
                 }
             }
+            .animation(.easeInOut(duration: 0.3), value: hasCompletedOnboarding)
             .animation(.easeInOut(duration: 0.3), value: authViewModel.isAuthenticated)
 
             // Offline banner
@@ -64,15 +93,10 @@ struct RootView: View {
             }
         }
         .animation(.spring(response: 0.4), value: networkMonitor.isConnected)
-        .onChange(of: authViewModel.isAuthenticated) { _, isAuth in
-            if !isAuth {
-                // Clear sensitive data on logout
-            }
-        }
     }
 }
 
-// MARK: - Offline Banner
+// MARK: – Offline Banner
 
 struct OfflineBanner: View {
     let pendingSyncs: Int
@@ -83,10 +107,10 @@ struct OfflineBanner: View {
                 .font(.system(size: 13, weight: .semibold))
 
             if pendingSyncs > 0 {
-                Text(String(localized: "Offline – \(pendingSyncs) Entwurf(e) werden synchronisiert sobald du online bist."))
+                Text("Offline – \(pendingSyncs) Entwurf(e) werden synchronisiert sobald du online bist.")
                     .font(.lgCaption)
             } else {
-                Text(String(localized: "Keine Internetverbindung"))
+                Text("Keine Internetverbindung")
                     .font(.lgCaption)
             }
         }
@@ -95,6 +119,14 @@ struct OfflineBanner: View {
         .padding(.vertical, 8)
         .frame(maxWidth: .infinity)
         .background(Color.black.opacity(0.85))
-        .padding(.top, 1) // below Dynamic Island / notch
+        .padding(.top, 1)
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Offline-Modus aktiv")
     }
+}
+
+// MARK: – Notification name
+
+extension Notification.Name {
+    static let navigateToTab = Notification.Name("com.lennardbuessow.lennygrowth.navigateToTab")
 }

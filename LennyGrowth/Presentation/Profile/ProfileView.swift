@@ -1,9 +1,16 @@
 import SwiftUI
 
 struct ProfileView: View {
-    @EnvironmentObject private var authViewModel: AuthViewModel
-    @EnvironmentObject private var container: DependencyContainer
+    @EnvironmentObject private var authViewModel:   AuthViewModel
+    @EnvironmentObject private var container:       DependencyContainer
+    @EnvironmentObject private var storeKitManager: StoreKitManager
+    @EnvironmentObject private var notificationMgr: NotificationManager
+    @EnvironmentObject private var oauthHandler:    OAuthCallbackHandler
     @StateObject private var viewModel: ProfileViewModel
+
+    @State private var showPaywall = false
+    @State private var showOAuthSafari = false
+    @State private var oauthURL: URL?
 
     init() {
         let keychain = KeychainWrapper()
@@ -23,6 +30,7 @@ struct ProfileView: View {
                 ScrollView {
                     VStack(spacing: 20) {
                         userHeader
+                        if !storeKitManager.hasPro { upgradeProBanner }
                         connectedAccountsSection
                         settingsSection
                         aboutSection
@@ -39,6 +47,15 @@ struct ProfileView: View {
         }
         .task {
             await viewModel.loadConnectedAccounts()
+        }
+        .sheet(isPresented: $showPaywall) {
+            PaywallView()
+        }
+        .onChange(of: oauthHandler.connectedPlatform) { _, platform in
+            if let platform {
+                Task { await viewModel.loadConnectedAccounts() }
+                oauthHandler.connectedPlatform = nil
+            }
         }
     }
 
@@ -80,6 +97,44 @@ struct ProfileView: View {
         }
         .padding(16)
         .glassCard(padding: 0)
+    }
+
+    // MARK: – Pro upgrade banner
+
+    private var upgradeProBanner: some View {
+        Button { showPaywall = true } label: {
+            HStack(spacing: 14) {
+                Image(systemName: "crown.fill")
+                    .font(.system(size: 20))
+                    .foregroundColor(.neonMagenta)
+                    .glow(color: .neonMagenta, radius: 8)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Upgrade auf Pro")
+                        .font(.lgBodySemibold)
+                        .foregroundColor(.textPrimary)
+                    Text("Unbegrenzte KI-Generierungen · €9,99/Monat")
+                        .font(.lgCaption)
+                        .foregroundColor(.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundColor(.neonMagenta)
+            }
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 14, style: .continuous)
+                    .fill(Color.neonMagenta.opacity(0.1))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 14, style: .continuous)
+                            .strokeBorder(Color.neonMagenta.opacity(0.3), lineWidth: 1)
+                    )
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel("Auf LennyGrowth Pro upgraden, €9,99 pro Monat")
+        .accessibilityHint("Tippe um den Upgrade-Bildschirm zu öffnen")
     }
 
     // MARK: - Connected accounts
@@ -158,9 +213,14 @@ struct ProfileView: View {
                 .buttonStyle(.plain)
             } else {
                 Button {
-                    Task {
-                        if platform == .linkedin { await viewModel.connectLinkedIn() }
-                        else { await viewModel.connectThreads() }
+                    let handler = OAuthCallbackHandler()
+                    if platform == .linkedin {
+                        oauthURL = handler.linkedInAuthURL()
+                    } else {
+                        oauthURL = handler.threadsAuthURL()
+                    }
+                    if let url = oauthURL {
+                        UIApplication.shared.open(url)
                     }
                 } label: {
                     Text(String(localized: "Verbinden"))
@@ -176,6 +236,7 @@ struct ProfileView: View {
                         .clipShape(Capsule())
                 }
                 .buttonStyle(.plain)
+                .accessibilityLabel("\(platform.displayName) verbinden")
             }
         }
         .padding(.horizontal, 16)
@@ -191,7 +252,21 @@ struct ProfileView: View {
                 .foregroundColor(.textPrimary)
 
             VStack(spacing: 1) {
+                Button {
+            Task { await notificationMgr.requestAuthorization() }
+        } label: {
+            HStack {
                 settingsRow(icon: "bell", title: String(localized: "Benachrichtigungen"))
+                    .frame(maxWidth: .infinity)
+                if notificationMgr.isAuthorized {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.neonTeal)
+                        .font(.system(size: 14))
+                        .padding(.trailing, 16)
+                }
+            }
+        }
+        .buttonStyle(.plain)
                 Divider().background(Color.glassBorder)
                 Button {
                     viewModel.clearCache()

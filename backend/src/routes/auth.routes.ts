@@ -63,4 +63,22 @@ export async function authRoutes(fastify: FastifyInstance): Promise<void> {
     await authService.logoutUser(req.userId, body?.refreshToken)
     reply.status(204).send()
   })
+
+  // POST /auth/reset-password  (request reset link via email)
+  fastify.post('/reset-password', async (req, reply) => {
+    const { email } = resetBody.parse(req.body)
+    await authService.requestPasswordReset(email)
+    reply.send({ message: 'Falls diese E-Mail registriert ist, wurde ein Reset-Link gesendet.' })
+  })
+
+  // POST /auth/reset-password/confirm  (submit new password)
+  const confirmResetBody = z.object({
+    token:       z.string().min(1),
+    newPassword: z.string().min(8),
+  })
+  fastify.post('/reset-password/confirm', async (req, reply) => {
+    const body = confirmResetBody.parse(req.body)
+    await authService.confirmPasswordReset(body.token, body.newPassword)
+    reply.send({ message: 'Passwort erfolgreich zurückgesetzt.' })
+  })
 }

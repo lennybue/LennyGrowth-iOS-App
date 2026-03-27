@@ -9,6 +9,7 @@ import { contentRoutes } from './routes/content.routes.js'
 import { postsRoutes } from './routes/posts.routes.js'
 import { aiRoutes } from './routes/ai.routes.js'
 import { userRoutes } from './routes/user.routes.js'
+import { mediaRoutes } from './routes/media.routes.js'
 
 export async function buildApp() {
   const app = Fastify({
@@ -87,6 +88,7 @@ export async function buildApp() {
     v1.register(postsRoutes)     // /posts, /social/*
     v1.register(aiRoutes)        // /ai/*
     v1.register(userRoutes)      // /user/*
+    v1.register(mediaRoutes)     // /media/*
   }, { prefix: '/v1' })
 
   return app

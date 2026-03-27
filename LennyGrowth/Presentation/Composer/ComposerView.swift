@@ -19,6 +19,7 @@ struct ComposerView: View {
                     VStack(spacing: 20) {
                         platformSelector
                         textEditor
+                        mediaPicker
                         warningBanners
                         toneSelector
                         actionRow
@@ -34,12 +35,36 @@ struct ComposerView: View {
             .toolbarBackground(Color.bgPrimary, for: .navigationBar)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(String(localized: "Entwurf")) {
-                        Task { await viewModel.saveDraft() }
+                    HStack(spacing: 14) {
+                        Button {
+                            viewModel.showPostPreview = true
+                        } label: {
+                            Image(systemName: "eye")
+                                .foregroundColor(.textSecondary)
+                        }
+                        .disabled(viewModel.content.isEmpty)
+                        .accessibilityLabel("Vorschau anzeigen")
+
+                        Button(String(localized: "Entwurf")) {
+                            Task { await viewModel.saveDraft() }
+                        }
+                        .font(.lgBodyMD)
+                        .foregroundColor(.iceBlue)
+                        .disabled(viewModel.content.isEmpty || viewModel.isSaving)
                     }
-                    .font(.lgBodyMD)
-                    .foregroundColor(.iceBlue)
-                    .disabled(viewModel.content.isEmpty || viewModel.isSaving)
+                }
+            }
+            .sheet(isPresented: $viewModel.showPostPreview) {
+                if let platform = viewModel.selectedPlatforms.first {
+                    PostPreviewView(
+                        content: viewModel.content,
+                        platform: platform,
+                        hashtags: viewModel.content
+                            .components(separatedBy: .whitespaces)
+                            .filter { $0.hasPrefix("#") }
+                            .map { String($0.dropFirst()) }
+                    )
+                    .presentationDetents([.large])
                 }
             }
             .sheet(isPresented: $viewModel.showScheduler) {
@@ -129,6 +154,12 @@ struct ComposerView: View {
                     )
             )
         }
+    }
+
+    // MARK: - Media picker
+
+    private var mediaPicker: some View {
+        MediaPickerView(items: $viewModel.mediaItems)
     }
 
     // MARK: - Warnings
