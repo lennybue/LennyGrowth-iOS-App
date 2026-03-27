@@ -1,0 +1,225 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Users ────────────────────────────────────────────────────────────────────
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  passwordHash     String?
+  displayName      String
+  avatarUrl        String?
+  bio              String?
+  subscriptionTier String    @default("free") // "free" | "pro"
+  appleUserId      String?   @unique
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  refreshTokens     RefreshToken[]
+  posts             Post[]
+  bookmarks         Bookmark[]
+  connectedAccounts ConnectedAccount[]
+  downloads         Download[]
+
+  @@index([email])
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([token])
+  @@index([userId])
+}
+
+// ─── Content ──────────────────────────────────────────────────────────────────
+
+model Article {
+  id              String   @id @default(cuid())
+  title           String
+  summary         String
+  content         String   @db.Text
+  authorName      String   @default("Lennard Büssow")
+  authorBio       String?
+  authorAvatarUrl String?
+  publishedAt     DateTime
+  updatedAt       DateTime @updatedAt
+  imageUrl        String?
+  tags            String[] @default([])
+  category        String   // matches ArticleCategory enum
+  readTimeMinutes Int      @default(5)
+  sourceUrl       String?
+  isFeatured      Boolean  @default(false)
+  isPublished     Boolean  @default(true)
+
+  bookmarks Bookmark[]
+
+  @@index([category])
+  @@index([publishedAt])
+  @@index([isFeatured])
+}
+
+model Bookmark {
+  id        String   @id @default(cuid())
+  userId    String
+  articleId String
+  createdAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  article Article @relation(fields: [articleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, articleId])
+  @@index([userId])
+}
+
+model Product {
+  id               String   @id @default(cuid())
+  name             String
+  description      String   @db.Text
+  shortDescription String
+  price            Decimal? @db.Decimal(10, 2)
+  currency         String   @default("EUR")
+  isFree           Boolean  @default(true)
+  category         String
+  imageUrl         String?
+  downloadUrl      String?
+  previewUrl       String?
+  tags             String[] @default([])
+  rating           Decimal? @db.Decimal(3, 2)
+  reviewCount      Int      @default(0)
+  downloadCount    Int      @default(0)
+  fileType         String?
+  fileSize         Int?
+  isNew            Boolean  @default(false)
+  isFeatured       Boolean  @default(false)
+  isPublished      Boolean  @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  downloads Download[]
+
+  @@index([isFree])
+  @@index([isFeatured])
+}
+
+model Download {
+  id          String   @id @default(cuid())
+  userId      String
+  productId   String
+  downloadedAt DateTime @default(now())
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, productId])
+  @@index([userId])
+}
+
+// ─── Posts ────────────────────────────────────────────────────────────────────
+
+model Post {
+  id               String   @id @default(cuid())
+  userId           String
+  content          String   @db.Text
+  platforms        String[] // ["linkedin", "threads"]
+  status           String   @default("draft") // draft | scheduled | publishing | published | failed
+  scheduledAt      DateTime?
+  publishedAt      DateTime?
+  hashtags         String[] @default([])
+  isDraft          Boolean  @default(true)
+  platformVariants Json     @default("{}")
+  errorMessage     String?
+
+  mediaAttachments MediaAttachment[]
+  metrics          PostMetrics?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@index([status])
+  @@index([scheduledAt])
+}
+
+model MediaAttachment {
+  id           String  @id @default(cuid())
+  postId       String
+  type         String  // image | video | gif
+  url          String?
+  thumbnailUrl String?
+  altText      String?
+  fileSize     Int?
+  width        Int?
+  height       Int?
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model PostMetrics {
+  id             String  @id @default(cuid())
+  postId         String  @unique
+  impressions    Int     @default(0)
+  reach          Int     @default(0)
+  likes          Int     @default(0)
+  comments       Int     @default(0)
+  shares         Int     @default(0)
+  clicks         Int     @default(0)
+  engagementRate Decimal @default(0) @db.Decimal(6, 4)
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  updatedAt DateTime @updatedAt
+}
+
+// ─── Social Accounts ──────────────────────────────────────────────────────────
+
+model ConnectedAccount {
+  id                   String    @id @default(cuid())
+  userId               String
+  platform             String    // linkedin | threads
+  username             String
+  profileImageUrl      String?
+  isConnected          Boolean   @default(true)
+  followerCount        Int?
+  platformUserId       String?
+  // OAuth tokens encrypted with AES-256-GCM — never sent to device
+  encryptedAccessToken  String?
+  encryptedRefreshToken String?
+  tokenExpiresAt       DateTime?
+  lastSyncedAt         DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, platform])
+  @@index([userId])
+}
+
+// ─── AI Usage ─────────────────────────────────────────────────────────────────
+
+model AiUsage {
+  id        String   @id @default(cuid())
+  userId    String
+  date      DateTime @default(now()) @db.Date
+  count     Int      @default(0)
+
+  @@unique([userId, date])
+  @@index([userId])
+}
