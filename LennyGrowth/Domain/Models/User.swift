@@ -55,6 +55,29 @@ struct User: Identifiable, Codable, Equatable {
             createdAt: Date()
         )
     }
+
+    static func mock() -> User {
+        User(
+            id: "user_lenny",
+            email: "lennard@lennardbuessow.digital",
+            displayName: "Lennard Büssow",
+            avatarURL: nil,
+            bio: "Digital Marketing Specialist & IT-Consultant | SEO · SEA · KI | DACH-Raum",
+            connectedAccounts: [
+                ConnectedAccount(
+                    id: "li_1",
+                    platform: .linkedin,
+                    username: "lennardbuessow",
+                    profileImageURL: nil,
+                    isConnected: true,
+                    followerCount: 4200,
+                    lastSyncedAt: .now
+                )
+            ],
+            subscriptionTier: .free,
+            createdAt: Date().addingTimeInterval(-180 * 86400)
+        )
+    }
 }
 
 struct ConnectedAccount: Identifiable, Codable, Equatable {

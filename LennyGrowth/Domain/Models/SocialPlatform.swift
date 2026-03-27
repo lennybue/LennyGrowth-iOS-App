@@ -49,6 +49,12 @@ enum SocialPlatform: String, Codable, CaseIterable, Identifiable {
         }
     }
 
+    /// Alias for SwiftUI Color(hex:) usage
+    var brandColorHex: String { brandColor }
+
+    /// SF Symbol name alias
+    var iconName: String { iconSystemName }
+
     var supportsMedia: Bool {
         switch self {
         case .twitter, .instagram, .facebook, .threads: return true

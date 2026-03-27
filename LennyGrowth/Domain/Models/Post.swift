@@ -92,6 +92,62 @@ struct PostMetrics: Codable, Equatable {
 }
 
 extension Post {
+    static func mockList() -> [Post] {
+        [
+            Post(
+                id: "post_1",
+                content: "Ich habe heute eine Erkenntnis gehabt, die mein SEO-Denken verändert hat.\n\nGoogle bewertet nicht mehr nur Backlinks – E-E-A-T ist der neue Standard.\n\n3 sofort umsetzbare Tipps:\n→ Autorenbox mit echter Expertise\n→ Case Studies mit echten Daten\n→ Interne Verlinkung zum Thema\n\nWas ist deine größte SEO-Challenge?\n\n(Detaillierter Guide: erster Kommentar 👇)",
+                platforms: [.linkedin],
+                status: .scheduled,
+                scheduledAt: Date().addingTimeInterval(2 * 3600),
+                publishedAt: nil,
+                createdAt: Date().addingTimeInterval(-3600),
+                updatedAt: nil,
+                mediaAttachments: [],
+                platformVariants: [:],
+                metrics: nil,
+                linkedArticleID: "article_1",
+                linkedProductID: nil,
+                hashtags: [],
+                isDraft: false
+            ),
+            Post(
+                id: "post_2",
+                content: "Hot take: Die meisten Google Ads Accounts verbrennen 40 % ihres Budgets.\n\nDer Grund? Fehlende Negative Keywords.\n\n→ Mehr dazu: Link in Bio 🔗",
+                platforms: [.threads],
+                status: .draft,
+                scheduledAt: nil,
+                publishedAt: nil,
+                createdAt: Date().addingTimeInterval(-7200),
+                updatedAt: nil,
+                mediaAttachments: [],
+                platformVariants: [:],
+                metrics: nil,
+                linkedArticleID: nil,
+                linkedProductID: nil,
+                hashtags: [],
+                isDraft: true
+            ),
+            Post(
+                id: "post_3",
+                content: "KI-Tools haben meinen Content-Workflow um 60 % beschleunigt.\n\nHier ist mein Stack 2026...\n\n#digitalmarketing #ki",
+                platforms: [.linkedin],
+                status: .published,
+                scheduledAt: nil,
+                publishedAt: Date().addingTimeInterval(-86400),
+                createdAt: Date().addingTimeInterval(-90000),
+                updatedAt: nil,
+                mediaAttachments: [],
+                platformVariants: [:],
+                metrics: PostMetrics(impressions: 3240, reach: 2100, likes: 187, comments: 34, shares: 22, clicks: 91, engagementRate: 0.058),
+                linkedArticleID: nil,
+                linkedProductID: nil,
+                hashtags: ["digitalmarketing", "ki"],
+                isDraft: false
+            )
+        ]
+    }
+
     static func draft() -> Post {
         Post(
             id: UUID().uuidString,
