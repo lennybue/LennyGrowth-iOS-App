@@ -14,4 +14,5 @@ protocol PostRepositoryProtocol {
     func connectSocialAccount(platform: SocialPlatform, accessToken: String) async throws -> ConnectedAccount
     func disconnectSocialAccount(accountID: String) async throws
     func fetchConnectedAccounts() async throws -> [ConnectedAccount]
+    func fetchPostAnalytics(id: String) async throws -> PostMetrics
 }

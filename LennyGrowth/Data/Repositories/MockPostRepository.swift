@@ -128,6 +128,18 @@ final class MockPostRepository: PostRepositoryProtocol {
     func fetchConnectedAccounts() async throws -> [ConnectedAccount] {
         return connectedAccounts
     }
+
+    func fetchPostAnalytics(id: String) async throws -> PostMetrics {
+        return PostMetrics(
+            impressions: Int.random(in: 1000...5000),
+            reach: Int.random(in: 800...4000),
+            likes: Int.random(in: 50...300),
+            comments: Int.random(in: 5...50),
+            shares: Int.random(in: 5...30),
+            clicks: Int.random(in: 20...150),
+            engagementRate: Double.random(in: 0.02...0.08)
+        )
+    }
 }
 
 enum PostError: LocalizedError {
