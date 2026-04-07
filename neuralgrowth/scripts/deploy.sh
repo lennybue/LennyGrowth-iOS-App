@@ -70,10 +70,8 @@ if [ -f ".env.local" ]; then
   echo ""
 fi
 
-# Build check
-echo -e "${CYAN}Verifying build...${NC}"
-npm run build 2>&1 | tail -3
-echo -e "${GREEN}✓ Build passed${NC}"
+# Skip local build — Vercel builds remotely with its own Node.js
+echo -e "${CYAN}Skipping local build (Vercel builds remotely)...${NC}"
 echo ""
 
 # Deploy

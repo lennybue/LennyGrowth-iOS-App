@@ -8,7 +8,7 @@
   "crons": [
     {
       "path": "/api/threads/feed",
-      "schedule": "0 */48 * * *"
+      "schedule": "0 8 */2 * *"
     }
   ],
   "headers": [
