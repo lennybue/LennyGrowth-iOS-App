@@ -24,16 +24,20 @@ create table public.users (
 
 alter table public.users enable row level security;
 
-create policy "Users can view their own data"
+create policy "Users can view own profile"
   on public.users for select
   using (auth.uid() = id);
 
-create policy "Users can insert their own data"
+create policy "Users can update own profile"
+  on public.users for update
+  using (auth.uid() = id);
+
+create policy "Users can insert own profile"
   on public.users for insert
   with check (auth.uid() = id);
 
-create policy "Users can update their own data"
-  on public.users for update
+create policy "Users can delete own profile"
+  on public.users for delete
   using (auth.uid() = id);
 
 -- ============================================================
@@ -58,19 +62,19 @@ create table public.posts (
 
 alter table public.posts enable row level security;
 
-create policy "Users can view their own posts"
+create policy "Users can view own posts"
   on public.posts for select
   using (auth.uid() = user_id);
 
-create policy "Users can insert their own posts"
+create policy "Users can insert own posts"
   on public.posts for insert
   with check (auth.uid() = user_id);
 
-create policy "Users can update their own posts"
+create policy "Users can update own posts"
   on public.posts for update
   using (auth.uid() = user_id);
 
-create policy "Users can delete their own posts"
+create policy "Users can delete own posts"
   on public.posts for delete
   using (auth.uid() = user_id);
 
@@ -98,19 +102,19 @@ create table public.engagement_pool (
 
 alter table public.engagement_pool enable row level security;
 
-create policy "Users can view their own engagement pool"
+create policy "Users can view own engagement pool"
   on public.engagement_pool for select
   using (auth.uid() = user_id);
 
-create policy "Users can insert into their own engagement pool"
+create policy "Users can insert own engagement pool"
   on public.engagement_pool for insert
   with check (auth.uid() = user_id);
 
-create policy "Users can update their own engagement pool"
+create policy "Users can update own engagement pool"
   on public.engagement_pool for update
   using (auth.uid() = user_id);
 
-create policy "Users can delete from their own engagement pool"
+create policy "Users can delete own engagement pool"
   on public.engagement_pool for delete
   using (auth.uid() = user_id);
 
@@ -132,19 +136,19 @@ create table public.ai_content_pool (
 
 alter table public.ai_content_pool enable row level security;
 
-create policy "Users can view their own ai content"
+create policy "Users can view own ai content pool"
   on public.ai_content_pool for select
   using (auth.uid() = user_id);
 
-create policy "Users can insert their own ai content"
+create policy "Users can insert own ai content pool"
   on public.ai_content_pool for insert
   with check (auth.uid() = user_id);
 
-create policy "Users can update their own ai content"
+create policy "Users can update own ai content pool"
   on public.ai_content_pool for update
   using (auth.uid() = user_id);
 
-create policy "Users can delete their own ai content"
+create policy "Users can delete own ai content pool"
   on public.ai_content_pool for delete
   using (auth.uid() = user_id);
 
@@ -163,19 +167,19 @@ create table public.analytics_cache (
 
 alter table public.analytics_cache enable row level security;
 
-create policy "Users can view their own analytics"
+create policy "Users can view own analytics cache"
   on public.analytics_cache for select
   using (auth.uid() = user_id);
 
-create policy "Users can insert their own analytics"
+create policy "Users can insert own analytics cache"
   on public.analytics_cache for insert
   with check (auth.uid() = user_id);
 
-create policy "Users can update their own analytics"
+create policy "Users can update own analytics cache"
   on public.analytics_cache for update
   using (auth.uid() = user_id);
 
-create policy "Users can delete their own analytics"
+create policy "Users can delete own analytics cache"
   on public.analytics_cache for delete
   using (auth.uid() = user_id);
 

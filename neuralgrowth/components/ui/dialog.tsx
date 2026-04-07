@@ -14,19 +14,16 @@ const DialogContext = React.createContext<DialogContextValue>({
   setOpen: () => {},
 });
 
-function useDialog() {
-  return React.useContext(DialogContext);
-}
-
-interface DialogProps {
+function Dialog({
+  children,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  children: React.ReactNode;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  children: React.ReactNode;
-}
-
-function Dialog({ open: controlledOpen, onOpenChange, children }: DialogProps) {
+}) {
   const [uncontrolledOpen, setUncontrolledOpen] = React.useState(false);
-
   const isControlled = controlledOpen !== undefined;
   const open = isControlled ? controlledOpen : uncontrolledOpen;
 
@@ -45,27 +42,31 @@ function Dialog({ open: controlledOpen, onOpenChange, children }: DialogProps) {
   );
 }
 
-interface DialogTriggerProps {
-  children: React.ReactNode;
-  asChild?: boolean;
-}
-
-function DialogTrigger({ children }: DialogTriggerProps) {
-  const { setOpen } = useDialog();
-
+function DialogTrigger({
+  children,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const { setOpen } = React.useContext(DialogContext);
   return (
-    <span onClick={() => setOpen(true)} className="cursor-pointer">
+    <button
+      className={className}
+      onClick={() => setOpen(true)}
+      {...props}
+    >
       {children}
-    </span>
+    </button>
   );
 }
 
 function DialogContent({
-  className,
   children,
-  ...props
-}: React.HTMLAttributes<HTMLDivElement>) {
-  const { open, setOpen } = useDialog();
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const { open, setOpen } = React.useContext(DialogContext);
   const [mounted, setMounted] = React.useState(false);
 
   React.useEffect(() => {
@@ -73,15 +74,17 @@ function DialogContent({
   }, []);
 
   React.useEffect(() => {
-    if (open) {
-      document.body.style.overflow = "hidden";
-    } else {
-      document.body.style.overflow = "";
-    }
+    if (!open) return;
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    document.addEventListener("keydown", handleEscape);
+    document.body.style.overflow = "hidden";
     return () => {
+      document.removeEventListener("keydown", handleEscape);
       document.body.style.overflow = "";
     };
-  }, [open]);
+  }, [open, setOpen]);
 
   if (!mounted || !open) return null;
 
@@ -93,10 +96,10 @@ function DialogContent({
       />
       <div
         className={cn(
-          "relative z-50 w-full max-w-lg rounded-xl border border-white/10 bg-[#111827]/95 backdrop-blur-md p-6 shadow-2xl animate-in fade-in-0 zoom-in-95 duration-200",
+          "relative z-50 w-full max-w-lg rounded-xl border border-white/10 bg-[#111827]/95 backdrop-blur-md p-6 shadow-2xl",
+          "animate-in fade-in-0 zoom-in-95",
           className
         )}
-        {...props}
       >
         {children}
       </div>
@@ -111,7 +114,7 @@ function DialogHeader({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex flex-col space-y-2 mb-4", className)}
+      className={cn("flex flex-col space-y-1.5 text-center sm:text-left mb-4", className)}
       {...props}
     />
   );
@@ -123,7 +126,7 @@ function DialogTitle({
 }: React.HTMLAttributes<HTMLHeadingElement>) {
   return (
     <h2
-      className={cn("text-lg font-semibold text-white", className)}
+      className={cn("text-lg font-semibold leading-none tracking-tight text-white", className)}
       {...props}
     />
   );
@@ -134,7 +137,10 @@ function DialogDescription({
   ...props
 }: React.HTMLAttributes<HTMLParagraphElement>) {
   return (
-    <p className={cn("text-sm text-[#94A3B8]", className)} {...props} />
+    <p
+      className={cn("text-sm text-[#94A3B8]", className)}
+      {...props}
+    />
   );
 }
 
@@ -144,19 +150,26 @@ function DialogFooter({
 }: React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={cn("flex justify-end gap-3 mt-6", className)}
+      className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 mt-4", className)}
       {...props}
     />
   );
 }
 
-function DialogClose({ children }: { children: React.ReactNode }) {
-  const { setOpen } = useDialog();
-
+function DialogClose({
+  children,
+  className,
+  ...props
+}: React.ButtonHTMLAttributes<HTMLButtonElement>) {
+  const { setOpen } = React.useContext(DialogContext);
   return (
-    <span onClick={() => setOpen(false)} className="cursor-pointer">
+    <button
+      className={className}
+      onClick={() => setOpen(false)}
+      {...props}
+    >
       {children}
-    </span>
+    </button>
   );
 }
 

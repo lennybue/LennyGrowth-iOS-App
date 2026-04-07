@@ -1,22 +1,18 @@
 const LINKEDIN_API_BASE = "https://api.linkedin.com/v2";
 
 interface LinkedInPostResponse {
-  id?: string;
-  status?: number;
-  message?: string;
+  id: string;
 }
 
-interface LinkedInStatsResponse {
-  elements: Array<{
-    totalShareStatistics: {
-      shareCount: number;
-      clickCount: number;
-      engagement: number;
-      impressionCount: number;
-      likeCount: number;
-      commentCount: number;
-    };
-  }>;
+interface LinkedInPostStats {
+  totalShareStatistics: {
+    shareCount: number;
+    clickCount: number;
+    engagement: number;
+    impressionCount: number;
+    likeCount: number;
+    commentCount: number;
+  };
 }
 
 export class LinkedInAPI {
@@ -52,11 +48,8 @@ export class LinkedInAPI {
     return response.json() as Promise<T>;
   }
 
-  async publishText(
-    text: string,
-    authorUrn: string
-  ): Promise<LinkedInPostResponse> {
-    return this.request<LinkedInPostResponse>("/ugcPosts", {
+  async publishText(text: string, authorUrn: string): Promise<string> {
+    const result = await this.request<LinkedInPostResponse>("/ugcPosts", {
       method: "POST",
       body: JSON.stringify({
         author: authorUrn,
@@ -72,14 +65,16 @@ export class LinkedInAPI {
         },
       }),
     });
+
+    return result.id;
   }
 
   async publishImage(
     text: string,
     imageUrl: string,
     authorUrn: string
-  ): Promise<LinkedInPostResponse> {
-    return this.request<LinkedInPostResponse>("/ugcPosts", {
+  ): Promise<string> {
+    const result = await this.request<LinkedInPostResponse>("/ugcPosts", {
       method: "POST",
       body: JSON.stringify({
         author: authorUrn,
@@ -101,12 +96,22 @@ export class LinkedInAPI {
         },
       }),
     });
+
+    return result.id;
   }
 
-  async getPostStats(postUrn: string): Promise<LinkedInStatsResponse> {
+  async getPostStats(
+    postUrn: string
+  ): Promise<LinkedInPostStats["totalShareStatistics"]> {
     const encodedUrn = encodeURIComponent(postUrn);
-    return this.request<LinkedInStatsResponse>(
+    const result = await this.request<{ elements: LinkedInPostStats[] }>(
       `/organizationalEntityShareStatistics?q=organizationalEntity&shares[0]=${encodedUrn}`
     );
+
+    if (!result.elements.length) {
+      throw new Error("No stats found for the specified post");
+    }
+
+    return result.elements[0].totalShareStatistics;
   }
 }

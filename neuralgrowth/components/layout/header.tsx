@@ -2,7 +2,7 @@
 
 import React from "react";
 import { usePathname } from "next/navigation";
-import { Bell, FileText, Menu } from "lucide-react";
+import { Bell, FileText } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const routeTitles: Record<string, string> = {

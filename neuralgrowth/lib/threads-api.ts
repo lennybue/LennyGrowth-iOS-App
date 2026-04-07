@@ -1,6 +1,10 @@
 const THREADS_API_BASE = "https://graph.threads.net/v1.0";
 
-interface ThreadsResponse {
+interface ThreadsMediaContainer {
+  id: string;
+}
+
+interface ThreadsAPIResponse {
   id?: string;
   error?: { message: string; code: number };
 }
@@ -13,15 +17,12 @@ interface ThreadsInsights {
   }>;
 }
 
-interface ThreadsPostsResponse {
-  data: Array<{
-    id: string;
-    text?: string;
-    timestamp: string;
-    media_type: string;
-    permalink: string;
-  }>;
-  paging?: { cursors: { after: string }; next: string };
+interface ThreadsPost {
+  id: string;
+  text?: string;
+  timestamp?: string;
+  media_type?: string;
+  permalink?: string;
 }
 
 export class ThreadsAPI {
@@ -56,9 +57,8 @@ export class ThreadsAPI {
     return response.json() as Promise<T>;
   }
 
-  async publishText(text: string): Promise<ThreadsResponse> {
-    // Step 1: Create media container
-    const container = await this.request<ThreadsResponse>("/me/threads", {
+  async publishText(text: string): Promise<string> {
+    const container = await this.request<ThreadsMediaContainer>("/me/threads", {
       method: "POST",
       body: JSON.stringify({
         media_type: "TEXT",
@@ -66,44 +66,48 @@ export class ThreadsAPI {
       }),
     });
 
-    if (!container.id) {
-      throw new Error("Failed to create Threads media container");
+    const result = await this.request<ThreadsAPIResponse>(
+      "/me/threads_publish",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          creation_id: container.id,
+        }),
+      }
+    );
+
+    if (!result.id) {
+      throw new Error("Failed to publish Threads post: no ID returned");
     }
 
-    // Step 2: Publish the container
-    return this.request<ThreadsResponse>("/me/threads_publish", {
-      method: "POST",
-      body: JSON.stringify({
-        creation_id: container.id,
-      }),
-    });
+    return result.id;
   }
 
-  async publishImage(
-    text: string,
-    imageUrl: string
-  ): Promise<ThreadsResponse> {
-    // Step 1: Create media container with image
-    const container = await this.request<ThreadsResponse>("/me/threads", {
+  async publishImage(text: string, imageUrl: string): Promise<string> {
+    const container = await this.request<ThreadsMediaContainer>("/me/threads", {
       method: "POST",
       body: JSON.stringify({
         media_type: "IMAGE",
-        text,
         image_url: imageUrl,
+        text,
       }),
     });
 
-    if (!container.id) {
-      throw new Error("Failed to create Threads image container");
+    const result = await this.request<ThreadsAPIResponse>(
+      "/me/threads_publish",
+      {
+        method: "POST",
+        body: JSON.stringify({
+          creation_id: container.id,
+        }),
+      }
+    );
+
+    if (!result.id) {
+      throw new Error("Failed to publish Threads image post: no ID returned");
     }
 
-    // Step 2: Publish the container
-    return this.request<ThreadsResponse>("/me/threads_publish", {
-      method: "POST",
-      body: JSON.stringify({
-        creation_id: container.id,
-      }),
-    });
+    return result.id;
   }
 
   async getInsights(mediaId: string): Promise<ThreadsInsights> {
@@ -112,15 +116,21 @@ export class ThreadsAPI {
     );
   }
 
-  async getUserPosts(limit: number = 25): Promise<ThreadsPostsResponse> {
-    return this.request<ThreadsPostsResponse>(
+  async getUserPosts(limit: number = 25): Promise<ThreadsPost[]> {
+    const result = await this.request<{ data: ThreadsPost[] }>(
       `/me/threads?fields=id,text,timestamp,media_type,permalink&limit=${limit}`
     );
+    return result.data;
   }
 
-  async getPostInsights(postId: string): Promise<ThreadsInsights> {
-    return this.request<ThreadsInsights>(
-      `/${postId}/insights?metric=views,likes,replies,reposts,quotes`
-    );
+  async getPostInsights(postId: string): Promise<Record<string, number>> {
+    const insights = await this.getInsights(postId);
+    const metrics: Record<string, number> = {};
+
+    for (const metric of insights.data) {
+      metrics[metric.name] = metric.values[0]?.value ?? 0;
+    }
+
+    return metrics;
   }
 }

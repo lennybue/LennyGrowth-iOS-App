@@ -1,17 +1,17 @@
 import { Redis } from "@upstash/redis";
 import { Ratelimit } from "@upstash/ratelimit";
 
-let redis: Redis | null = null;
+let redisClient: Redis | null = null;
 let rateLimiter: Ratelimit | null = null;
 
 export function getRedis(): Redis {
-  if (!redis) {
-    redis = new Redis({
+  if (!redisClient) {
+    redisClient = new Redis({
       url: process.env.UPSTASH_REDIS_REST_URL!,
       token: process.env.UPSTASH_REDIS_REST_TOKEN!,
     });
   }
-  return redis;
+  return redisClient;
 }
 
 export function getRateLimiter(): Ratelimit {
@@ -27,8 +27,8 @@ export function getRateLimiter(): Ratelimit {
 }
 
 export async function cacheGet<T>(key: string): Promise<T | null> {
-  const client = getRedis();
-  return client.get<T>(key);
+  const redis = getRedis();
+  return redis.get<T>(key);
 }
 
 export async function cacheSet<T>(
@@ -36,6 +36,6 @@ export async function cacheSet<T>(
   value: T,
   ttlSeconds: number = 3600
 ): Promise<void> {
-  const client = getRedis();
-  await client.set(key, value, { ex: ttlSeconds });
+  const redis = getRedis();
+  await redis.set(key, value, { ex: ttlSeconds });
 }

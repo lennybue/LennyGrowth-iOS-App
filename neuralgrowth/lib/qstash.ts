@@ -15,14 +15,16 @@ export async function schedulePost(
   postId: string,
   publishAt: Date,
   callbackUrl: string
-) {
+): Promise<string> {
   const client = getQStashClient();
 
   const notBefore = Math.floor(publishAt.getTime() / 1000);
 
-  return client.publishJSON({
+  const result = await client.publishJSON({
     url: callbackUrl,
     body: { postId },
     notBefore,
   });
+
+  return result.messageId;
 }
