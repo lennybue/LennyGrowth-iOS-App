@@ -37,6 +37,7 @@
   }
 }
 
+/* Glassmorphism utilities */
 .glass-card {
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -49,6 +50,7 @@
   border-color: rgba(255, 255, 255, 0.12);
 }
 
+/* Glow effects */
 .glow-magenta {
   box-shadow: 0 0 20px rgba(255, 0, 110, 0.3);
 }
@@ -61,10 +63,12 @@
   box-shadow: 0 0 20px rgba(76, 201, 240, 0.3);
 }
 
+/* Smooth transitions */
 .transition-smooth {
   transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -83,6 +87,7 @@
   background: rgba(255, 255, 255, 0.2);
 }
 
+/* Scroll snap for time picker */
 .scroll-picker {
   scroll-snap-type: y mandatory;
   -webkit-overflow-scrolling: touch;
@@ -92,13 +97,14 @@
   scroll-snap-align: center;
 }
 
+/* Typewriter animation for AI streaming */
 @keyframes blink {
   0%, 50% { opacity: 1; }
   51%, 100% { opacity: 0; }
 }
 
 .cursor-blink::after {
-  content: "\25CA";
+  content: "▊";
   animation: blink 1s infinite;
   color: #FF006E;
 }

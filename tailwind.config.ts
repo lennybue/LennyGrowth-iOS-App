@@ -43,6 +43,7 @@ const config: Config = {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // NeuralGrowth brand colors
         "neon-magenta": "#FF006E",
         "neon-teal": "#16E1C4",
         "ice-blue": "#4CC9F0",
