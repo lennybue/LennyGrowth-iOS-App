@@ -31,6 +31,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# legacy subdirectory
+neuralgrowth/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts
