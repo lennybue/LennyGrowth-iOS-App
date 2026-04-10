@@ -3,11 +3,13 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
 import { cn } from "@/lib/utils";
 import { Mail, Lock, ArrowRight, Sparkles } from "lucide-react";
 
 export default function LoginPage() {
   const router = useRouter();
+  const supabase = createClient();
 
   // Sign-in form state
   const [email, setEmail] = useState("");
@@ -20,27 +22,37 @@ export default function LoginPage() {
   const [isSendingMagic, setIsSendingMagic] = useState(false);
 
   const [showMagicLink, setShowMagicLink] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSigningIn(true);
-    // TODO: Wire up Supabase auth
-    // const { error } = await supabase.auth.signInWithPassword({ email, password });
-    setTimeout(() => {
+    setError(null);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) {
+      setError(error.message);
       setIsSigningIn(false);
+    } else {
       router.push("/compose");
-    }, 1200);
+      router.refresh();
+    }
   };
 
   const handleMagicLink = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSendingMagic(true);
-    // TODO: Wire up Supabase magic link
-    // const { error } = await supabase.auth.signInWithOtp({ email: magicEmail });
-    setTimeout(() => {
+    setError(null);
+    const { error } = await supabase.auth.signInWithOtp({
+      email: magicEmail,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
+    });
+    if (error) {
+      setError(error.message);
+      setIsSendingMagic(false);
+    } else {
       setIsSendingMagic(false);
       setMagicSent(true);
-    }, 1000);
+    }
   };
 
   return (
@@ -66,6 +78,11 @@ export default function LoginPage() {
 
         {/* Card */}
         <div className="glass-card p-6 sm:p-8">
+          {error && (
+            <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+              {error}
+            </div>
+          )}
           {!showMagicLink ? (
             <>
               <form onSubmit={handleSignIn} className="space-y-4">

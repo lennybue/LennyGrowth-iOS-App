@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Bot,
@@ -40,8 +40,8 @@ const HOOK_FORMATS: { value: HookFormat; label: string }[] = [
   { value: "question", label: "Question" },
 ];
 
-// Mock AI content pool
-const MOCK_POOL: AIContentItem[] = [
+// Fallback content pool (used when API is unavailable)
+const FALLBACK_POOL: AIContentItem[] = [
   {
     id: "ai1", user_id: "u1",
     content: "I stopped using hashtags on Threads 3 months ago.\n\nResult: +340% more impressions.\n\nHashtags don't boost discovery here. The algorithm promotes content based on engagement, not tags.\n\nFocus on the hook. Focus on the value.\n\nStop decorating your posts. Start writing them.",
@@ -248,10 +248,45 @@ function NicheSettingsModal({
 }
 
 export default function AIContentPage() {
-  const [pool, setPool] = useState<AIContentItem[]>(MOCK_POOL);
+  const [pool, setPool] = useState<AIContentItem[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [showSettings, setShowSettings] = useState(false);
   const [regeneratingId, setRegeneratingId] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadPool() {
+      try {
+        const res = await fetch("/api/posts?status=draft&limit=10");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.posts?.length > 0) {
+            setPool(data.posts.map((p: any) => ({
+              id: p.id,
+              user_id: p.user_id,
+              content: p.content_threads || p.content_linkedin || "",
+              platform: p.platforms?.[0] || "threads",
+              status: "draft" as const,
+              hook_type: "confession" as HookFormat,
+              topic: "content-marketing",
+              tone: "bold" as ToneType,
+              generated_at: p.created_at,
+              used_at: null,
+            })));
+          } else {
+            setPool(FALLBACK_POOL);
+          }
+        } else {
+          setPool(FALLBACK_POOL);
+        }
+      } catch {
+        setPool(FALLBACK_POOL);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadPool();
+  }, []);
 
   const activePool = pool.filter((p) => p.status === "draft");
   const poolSize = activePool.length;
@@ -263,30 +298,72 @@ export default function AIContentPage() {
 
   const handleRegenerate = useCallback(async (id: string) => {
     setRegeneratingId(id);
-    // Simulate regeneration
-    await new Promise((r) => setTimeout(r, 2000));
-    setPool((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              content: "Fresh AI-generated content would appear here after calling the API. The actual implementation streams from Claude API to create unique, platform-optimized content for your niche.",
-              generated_at: new Date().toISOString(),
-              hook_type: "confession" as HookFormat,
-            }
-          : p
-      )
-    );
-    setRegeneratingId(null);
+    try {
+      const res = await fetch("/api/ai/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          platform: "threads",
+          tone: "bold",
+          count: 1,
+          niche_tags: ["content-marketing"],
+        }),
+      });
+      if (!res.ok) throw new Error();
+      const reader = res.body?.getReader();
+      if (!reader) throw new Error();
+      let result = "";
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        result += decoder.decode(value, { stream: true });
+      }
+      setPool((prev) =>
+        prev.map((p) =>
+          p.id === id
+            ? { ...p, content: result.trim(), generated_at: new Date().toISOString() }
+            : p
+        )
+      );
+    } catch {
+      // Keep existing content on failure
+    } finally {
+      setRegeneratingId(null);
+    }
   }, []);
 
   const handlePublishNow = useCallback(async (id: string) => {
     if (!confirm("Post this now to Threads?")) return;
     setPublishingId(id);
-    await new Promise((r) => setTimeout(r, 1500));
-    setPool((prev) => prev.filter((p) => p.id !== id));
-    setPublishingId(null);
-  }, []);
+    try {
+      const item = pool.find((p) => p.id === id);
+      if (!item) return;
+      // Create post then publish
+      const createRes = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          content_threads: item.content,
+          platforms: ["threads"],
+          status: "draft",
+        }),
+      });
+      if (createRes.ok) {
+        const { post } = await createRes.json();
+        await fetch("/api/posts/publish", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ postId: post.id }),
+        });
+      }
+      setPool((prev) => prev.filter((p) => p.id !== id));
+    } catch {
+      // Keep in pool on failure
+    } finally {
+      setPublishingId(null);
+    }
+  }, [pool]);
 
   return (
     <div className="h-full flex flex-col gap-6">

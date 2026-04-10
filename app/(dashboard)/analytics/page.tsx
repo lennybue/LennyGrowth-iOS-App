@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   Eye,
@@ -35,8 +35,8 @@ import type { Platform, MetricWidget, TopPost } from "@/types";
 type DateRange = "7d" | "30d" | "90d";
 type MetricType = "views" | "likes" | "comments" | "engagement" | "followers";
 
-// Mock analytics data
-const MOCK_METRICS: MetricWidget[] = [
+// Fallback analytics data
+const FALLBACK_METRICS: MetricWidget[] = [
   { label: "Total Views", value: 24830, change: 2760, changePercent: 12.4, trend: "up", icon: "eye" },
   { label: "Total Likes", value: 1847, change: 243, changePercent: 15.1, trend: "up", icon: "heart" },
   { label: "Total Comments", value: 342, change: -18, changePercent: -5.0, trend: "down", icon: "message" },
@@ -45,13 +45,13 @@ const MOCK_METRICS: MetricWidget[] = [
   { label: "Follower Growth", value: 156, change: 156, changePercent: 0, trend: "up", icon: "users" },
 ];
 
-const MOCK_CHART_DATA = Array.from({ length: 30 }, (_, i) => ({
+const FALLBACK_CHART_DATA = Array.from({ length: 30 }, (_, i) => ({
   date: new Date(Date.now() - (29 - i) * 86400000).toLocaleDateString("en-US", { month: "short", day: "numeric" }),
   threads: Math.floor(Math.random() * 1200 + 400),
   linkedin: Math.floor(Math.random() * 800 + 200),
 }));
 
-const MOCK_TOP_POSTS: TopPost[] = [
+const FALLBACK_TOP_POSTS: TopPost[] = [
   {
     id: "tp1",
     content: "I stopped using hashtags on Threads 3 months ago. Result: +340% more impressions...",
@@ -150,9 +150,31 @@ export default function AnalyticsPage() {
   const [activeMetric, setActiveMetric] = useState<MetricType>("views");
   const [sortColumn, setSortColumn] = useState<string>("views");
   const [sortDir, setSortDir] = useState<"asc" | "desc">("desc");
+  const [metrics, setMetrics] = useState<MetricWidget[]>(FALLBACK_METRICS);
+  const [chartData, setChartData] = useState(FALLBACK_CHART_DATA);
+  const [topPosts, setTopPosts] = useState<TopPost[]>(FALLBACK_TOP_POSTS);
+  const [lastUpdated, setLastUpdated] = useState<string>("just now");
+
+  useEffect(() => {
+    async function fetchAnalytics() {
+      try {
+        const res = await fetch(`/api/analytics?range=${dateRange}&platform=${platformFilter}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.metrics?.length) setMetrics(data.metrics);
+          if (data.chartData?.length) setChartData(data.chartData);
+          if (data.topPosts?.length) setTopPosts(data.topPosts);
+          setLastUpdated("just now");
+        }
+      } catch {
+        // Keep fallback data
+      }
+    }
+    fetchAnalytics();
+  }, [dateRange, platformFilter]);
 
   const sortedPosts = useMemo(() => {
-    return [...MOCK_TOP_POSTS].sort((a, b) => {
+    return [...topPosts].sort((a, b) => {
       const aVal = a[sortColumn as keyof TopPost] as number;
       const bVal = b[sortColumn as keyof TopPost] as number;
       return sortDir === "desc" ? bVal - aVal : aVal - bVal;
@@ -211,7 +233,7 @@ export default function AnalyticsPage() {
 
       {/* KPI Widgets */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        {MOCK_METRICS.map((metric) => (
+        {metrics.map((metric) => (
           <motion.div
             key={metric.label}
             whileHover={{ scale: 1.02 }}
@@ -273,7 +295,7 @@ export default function AnalyticsPage() {
         </div>
         <div className="h-[300px]">
           <ResponsiveContainer width="100%" height="100%">
-            <LineChart data={MOCK_CHART_DATA}>
+            <LineChart data={chartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
               <XAxis
                 dataKey="date"
@@ -428,7 +450,7 @@ export default function AnalyticsPage() {
       {/* Last updated */}
       <div className="flex items-center gap-2 text-xs text-text-secondary pb-4">
         <Clock className="w-3 h-3" />
-        Last updated: 23 minutes ago
+        Last updated: {lastUpdated}
       </div>
     </div>
   );

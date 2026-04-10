@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@/lib/supabase/client";
 import {
   Settings,
   Link2,
@@ -40,6 +41,26 @@ function Toggle({
 }
 
 export default function SettingsPage() {
+  const supabase = createClient();
+  const [threadsHandle, setThreadsHandle] = useState<string | null>(null);
+  const [linkedinName, setLinkedinName] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    async function loadProfile() {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data } = await supabase.from("users").select("*").eq("id", user.id).single();
+      if (data) {
+        setThreadsHandle(data.threads_handle);
+        setLinkedinName(data.linkedin_name);
+        if (data.tone_preference) setDefaultTone(data.tone_preference);
+        if (data.language_preference) setDefaultLanguage(data.language_preference);
+      }
+    }
+    loadProfile();
+  }, [supabase]);
+
   const [settings, setSettings] = useState<UserSettings>({
     remind_linkedin_comment: true,
     warn_threads_hashtags: true,
@@ -78,28 +99,92 @@ export default function SettingsPage() {
               <span className="text-lg">🧵</span>
               <div>
                 <p className="text-sm font-medium text-white">Threads</p>
-                <p className="text-xs text-neon-teal flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Connected: @growthbylenny
-                </p>
+                {threadsHandle ? (
+                  <p className="text-xs text-neon-teal flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Connected: {threadsHandle}
+                  </p>
+                ) : (
+                  <p className="text-xs text-text-secondary flex items-center gap-1">
+                    <XCircle className="w-3 h-3" /> Not connected
+                  </p>
+                )}
               </div>
             </div>
-            <button className="px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 transition-smooth">
-              Disconnect
-            </button>
+            {threadsHandle ? (
+              <button
+                onClick={async () => {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (user) {
+                    await supabase.from("users").update({ threads_token: null, threads_handle: null }).eq("id", user.id);
+                    setThreadsHandle(null);
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 transition-smooth"
+              >
+                Disconnect
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  const params = new URLSearchParams({
+                    client_id: process.env.NEXT_PUBLIC_THREADS_APP_ID || "",
+                    redirect_uri: `${window.location.origin}/api/auth/threads/callback`,
+                    scope: "threads_basic,threads_content_publish,threads_manage_insights",
+                    response_type: "code",
+                  });
+                  window.location.href = `https://threads.net/oauth/authorize?${params}`;
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs text-neon-teal hover:bg-neon-teal/10 transition-smooth"
+              >
+                Connect
+              </button>
+            )}
           </div>
           <div className="flex items-center justify-between p-4 rounded-xl bg-white/[0.02] border border-white/[0.05]">
             <div className="flex items-center gap-3">
               <span className="text-lg">💼</span>
               <div>
                 <p className="text-sm font-medium text-white">LinkedIn</p>
-                <p className="text-xs text-neon-teal flex items-center gap-1">
-                  <CheckCircle2 className="w-3 h-3" /> Connected: Lennard Büssow
-                </p>
+                {linkedinName ? (
+                  <p className="text-xs text-neon-teal flex items-center gap-1">
+                    <CheckCircle2 className="w-3 h-3" /> Connected: {linkedinName}
+                  </p>
+                ) : (
+                  <p className="text-xs text-text-secondary flex items-center gap-1">
+                    <XCircle className="w-3 h-3" /> Not connected
+                  </p>
+                )}
               </div>
             </div>
-            <button className="px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 transition-smooth">
-              Disconnect
-            </button>
+            {linkedinName ? (
+              <button
+                onClick={async () => {
+                  const { data: { user } } = await supabase.auth.getUser();
+                  if (user) {
+                    await supabase.from("users").update({ linkedin_token: null, linkedin_name: null }).eq("id", user.id);
+                    setLinkedinName(null);
+                  }
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs text-red-400 hover:bg-red-500/10 transition-smooth"
+              >
+                Disconnect
+              </button>
+            ) : (
+              <button
+                onClick={() => {
+                  const params = new URLSearchParams({
+                    response_type: "code",
+                    client_id: process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "",
+                    redirect_uri: `${window.location.origin}/api/auth/linkedin/callback`,
+                    scope: "openid profile w_member_social",
+                  });
+                  window.location.href = `https://www.linkedin.com/oauth/v2/authorization?${params}`;
+                }}
+                className="px-3 py-1.5 rounded-lg text-xs text-neon-teal hover:bg-neon-teal/10 transition-smooth"
+              >
+                Connect
+              </button>
+            )}
           </div>
         </div>
       </section>

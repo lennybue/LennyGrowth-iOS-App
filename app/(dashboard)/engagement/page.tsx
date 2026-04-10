@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart,
@@ -28,8 +28,8 @@ const REPLY_TYPES: { type: ReplyType; label: string; icon: string; description: 
   { type: "agree-extend", label: "Agree & Extend", icon: "🤝", description: "Agreement plus your own insight" },
 ];
 
-// Mock data
-const MOCK_ENGAGEMENT_POSTS: EngagementPost[] = [
+// Fallback data used when the API is unavailable
+const FALLBACK_POSTS: EngagementPost[] = [
   {
     id: "e1",
     user_id: "u1",
@@ -264,9 +264,33 @@ function ReplyComposerModal({
 export default function EngagementPage() {
   const [view, setView] = useState<"grid" | "list">("grid");
   const [tab, setTab] = useState<"feed" | "saved">("feed");
-  const [posts, setPosts] = useState(MOCK_ENGAGEMENT_POSTS);
+  const [isLoading, setIsLoading] = useState(true);
+  const [posts, setPosts] = useState<EngagementPost[]>([]);
   const [replyPost, setReplyPost] = useState<EngagementPost | null>(null);
   const [trashedUndo, setTrashedUndo] = useState<{ post: EngagementPost; timeout: NodeJS.Timeout } | null>(null);
+
+  useEffect(() => {
+    async function fetchFeed() {
+      try {
+        const res = await fetch("/api/threads/feed");
+        if (res.ok) {
+          const data = await res.json();
+          if (data.posts && data.posts.length > 0) {
+            setPosts(data.posts);
+          } else {
+            setPosts(FALLBACK_POSTS);
+          }
+        } else {
+          setPosts(FALLBACK_POSTS);
+        }
+      } catch {
+        setPosts(FALLBACK_POSTS);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchFeed();
+  }, []);
 
   const nextRefresh = new Date(Date.now() + 82800000); // ~23h from now
   const refreshHours = Math.floor((nextRefresh.getTime() - Date.now()) / 3600000);
@@ -345,10 +369,22 @@ export default function EngagementPage() {
         </div>
         <div className="flex items-center gap-2">
           <button
-            disabled
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-card text-xs text-text-secondary opacity-50 cursor-not-allowed"
+            onClick={async () => {
+              setIsLoading(true);
+              try {
+                const res = await fetch("/api/threads/feed", { cache: "no-store" });
+                if (res.ok) {
+                  const data = await res.json();
+                  if (data.posts?.length > 0) setPosts(data.posts);
+                }
+              } catch {} finally {
+                setIsLoading(false);
+              }
+            }}
+            disabled={isLoading}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg glass-card text-xs text-text-secondary hover:text-white transition-smooth disabled:opacity-50"
           >
-            <RefreshCw className="w-3 h-3" />
+            <RefreshCw className={cn("w-3 h-3", isLoading && "animate-spin")} />
             Refresh
           </button>
           <div className="flex items-center gap-1 glass-card rounded-lg p-0.5">
@@ -402,6 +438,11 @@ export default function EngagementPage() {
             : "space-y-3"
         )}
       >
+        {isLoading && (
+          <div className="col-span-full flex items-center justify-center py-20">
+            <Loader2 className="w-8 h-8 animate-spin text-neon-teal" />
+          </div>
+        )}
         <AnimatePresence>
           {filteredPosts.map((post) => (
             <motion.div

@@ -340,10 +340,22 @@ export default function ComposePage() {
                 accept="image/*"
                 multiple={platform !== "linkedin"}
                 className="hidden"
-                onChange={(e) => {
+                onChange={async (e) => {
                   const files = Array.from(e.target.files || []);
-                  const urls = files.map((f) => URL.createObjectURL(f));
-                  setMediaFiles((prev) => [...prev, ...urls].slice(0, platform === "linkedin" ? 1 : 4));
+                  for (const file of files) {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    try {
+                      const res = await fetch("/api/upload", { method: "POST", body: formData });
+                      if (res.ok) {
+                        const { url } = await res.json();
+                        setMediaFiles((prev) => [...prev, url].slice(0, platform === "linkedin" ? 1 : 4));
+                      }
+                    } catch {
+                      // Fallback to local blob URL
+                      setMediaFiles((prev) => [...prev, URL.createObjectURL(file)].slice(0, platform === "linkedin" ? 1 : 4));
+                    }
+                  }
                 }}
               />
             </label>

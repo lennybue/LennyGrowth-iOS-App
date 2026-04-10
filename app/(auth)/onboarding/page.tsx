@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { createClient } from "@/lib/supabase/client";
 import {
   ArrowLeft,
   ArrowRight,
@@ -61,8 +62,15 @@ const slideVariants = {
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const supabase = createClient();
   const [step, setStep] = useState(1);
   const [direction, setDirection] = useState(1);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [isCreating, setIsCreating] = useState(false);
+  const [authError, setAuthError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
 
   // Step 1 & 2
   const [threadsConnected, setThreadsConnected] = useState(false);
@@ -72,6 +80,20 @@ export default function OnboardingPage() {
   const [selectedNiches, setSelectedNiches] = useState<NicheTag[]>([]);
   const [selectedTone, setSelectedTone] = useState<ToneType>("professional");
   const [selectedLanguage, setSelectedLanguage] = useState<Language>("english");
+
+  // Check if returning from OAuth
+  useEffect(() => {
+    const success = searchParams.get("success");
+    if (success === "threads_connected") setThreadsConnected(true);
+    if (success === "linkedin_connected") setLinkedinConnected(true);
+  }, [searchParams]);
+
+  // Check existing auth
+  useEffect(() => {
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) setIsAuthenticated(true);
+    });
+  }, [supabase.auth]);
 
   const goNext = () => {
     if (step < TOTAL_STEPS) {
@@ -95,14 +117,45 @@ export default function OnboardingPage() {
     );
   };
 
+  const handleCreateAccount = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsCreating(true);
+    setAuthError(null);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${window.location.origin}/auth/callback?next=/onboarding` },
+    });
+    if (error) {
+      setAuthError(error.message);
+      setIsCreating(false);
+    } else {
+      setIsAuthenticated(true);
+      setIsCreating(false);
+      goNext();
+    }
+  };
+
   const handleConnectThreads = () => {
-    // TODO: Wire up Threads OAuth
-    setTimeout(() => setThreadsConnected(true), 800);
+    const params = new URLSearchParams({
+      client_id: process.env.NEXT_PUBLIC_THREADS_APP_ID || "",
+      redirect_uri: `${window.location.origin}/api/auth/threads/callback`,
+      scope: "threads_basic,threads_content_publish,threads_manage_insights",
+      response_type: "code",
+      state: "onboarding",
+    });
+    window.location.href = `https://threads.net/oauth/authorize?${params}`;
   };
 
   const handleConnectLinkedIn = () => {
-    // TODO: Wire up LinkedIn OAuth
-    setTimeout(() => setLinkedinConnected(true), 800);
+    const params = new URLSearchParams({
+      response_type: "code",
+      client_id: process.env.NEXT_PUBLIC_LINKEDIN_CLIENT_ID || "",
+      redirect_uri: `${window.location.origin}/api/auth/linkedin/callback`,
+      scope: "openid profile w_member_social",
+      state: "onboarding",
+    });
+    window.location.href = `https://www.linkedin.com/oauth/v2/authorization?${params}`;
   };
 
   const canProceed = () => {
@@ -414,7 +467,21 @@ export default function OnboardingPage() {
                   className="mt-8"
                 >
                   <button
-                    onClick={() => router.push("/ai-content")}
+                    onClick={async () => {
+                      // Save preferences to Supabase
+                      const { data: { user } } = await supabase.auth.getUser();
+                      if (user) {
+                        await supabase.from("users").upsert({
+                          id: user.id,
+                          email: user.email,
+                          niche_tags: selectedNiches,
+                          tone_preference: selectedTone,
+                          language_preference: selectedLanguage,
+                        });
+                      }
+                      router.push("/compose");
+                      router.refresh();
+                    }}
                     className={cn(
                       "flex w-full items-center justify-center gap-2 rounded-xl bg-neon-magenta py-3 text-sm font-semibold text-white",
                       "hover:bg-neon-magenta/90 active:scale-[0.98]",
