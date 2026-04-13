@@ -55,6 +55,83 @@ const TONES: { value: ToneType; label: string }[] = [
   { value: "data-driven", label: "Data-Driven" },
 ];
 
+interface PostTemplate {
+  id: string;
+  label: string;
+  platform: Platform | "both";
+  icon: string;
+  description: string;
+  template: string;
+}
+
+const POST_TEMPLATES: PostTemplate[] = [
+  {
+    id: "linkedin-goldformat",
+    label: "LinkedIn Goldformat",
+    platform: "linkedin",
+    icon: "💼",
+    description: "Hook → Story → Insight → CTA structure",
+    template: `[Bold hook statement that stops the scroll]\n\nHere's the story:\n\n→ [Setup: What happened / the situation]\n→ [Conflict: The challenge or surprising twist]\n→ [Resolution: What you learned or achieved]\n\nThe lesson?\n\n[Key insight in 1-2 sentences]\n\n♻️ Repost if this resonated\n💬 What's your experience with [topic]?`,
+  },
+  {
+    id: "threads-hot-take",
+    label: "Threads Hot Take",
+    platform: "threads",
+    icon: "🔥",
+    description: "Bold opinion that sparks conversation",
+    template: `Unpopular opinion:\n\n[Your contrarian take on a common belief]\n\nHere's why most people get this wrong:\n\n1. [First reason]\n2. [Second reason]\n3. [Third reason]\n\nThe truth? [One-line summary]\n\nAgree or disagree?`,
+  },
+  {
+    id: "data-story",
+    label: "Data Story",
+    platform: "both",
+    icon: "📊",
+    description: "Lead with a compelling stat",
+    template: `[Surprising statistic or data point]\n\nLet that sink in.\n\n[Context for why this matters]\n\nHere's what the data actually tells us:\n\n• [Insight 1]\n• [Insight 2]\n• [Insight 3]\n\nWhat this means for you: [Actionable takeaway]`,
+  },
+  {
+    id: "listicle",
+    label: "Listicle / Tips",
+    platform: "both",
+    icon: "📋",
+    description: "Numbered tips or lessons",
+    template: `[Number] [topic] lessons I learned [timeframe]:\n\n1. [Lesson + brief explanation]\n2. [Lesson + brief explanation]\n3. [Lesson + brief explanation]\n4. [Lesson + brief explanation]\n5. [Lesson + brief explanation]\n\nWhich one resonates most? 👇`,
+  },
+  {
+    id: "confession",
+    label: "Confession Hook",
+    platform: "threads",
+    icon: "🤫",
+    description: "Vulnerability-driven engagement",
+    template: `I have a confession to make.\n\n[Your honest admission about a mistake/failure]\n\nAt the time, I thought [what you believed then].\n\nBut here's what actually happened:\n\n[The real outcome]\n\nThe takeaway nobody talks about:\n\n[Your unique insight from this experience]`,
+  },
+  {
+    id: "thread-breakdown",
+    label: "Thread / Breakdown",
+    platform: "threads",
+    icon: "🧵",
+    description: "Multi-post thread format",
+    template: `[Compelling hook — the promise of the thread]\n\nA thread 🧵\n\n---\n\n1/ [First key point with detail]\n\n2/ [Second key point with detail]\n\n3/ [Third key point with detail]\n\n4/ [Fourth key point with detail]\n\n5/ [Summary + CTA]\n\nIf you found this useful, follow for more [topic] content.`,
+  },
+  {
+    id: "linkedin-carousel-text",
+    label: "Carousel Script",
+    platform: "linkedin",
+    icon: "🎠",
+    description: "Text outline for a carousel post",
+    template: `[Carousel Title: Make it bold and specific]\n\nSlide 1 (Cover): [Eye-catching title + subtitle]\n\nSlide 2: The Problem\n→ [What your audience struggles with]\n\nSlide 3: Why It Matters\n→ [The stakes / cost of inaction]\n\nSlide 4-7: The Solution\n→ Step 1: [Action + detail]\n→ Step 2: [Action + detail]\n→ Step 3: [Action + detail]\n→ Step 4: [Action + detail]\n\nSlide 8 (CTA): [Follow for more + save this post]\n\n---\nCaption: [Short summary + question for engagement]`,
+  },
+  {
+    id: "question-hook",
+    label: "Question Hook",
+    platform: "both",
+    icon: "❓",
+    description: "Open with a thought-provoking question",
+    template: `What if [thought-provoking hypothetical]?\n\nI've been thinking about this a lot lately.\n\n[Your perspective in 2-3 sentences]\n\nThe real question isn't [obvious thing].\n\nIt's [the deeper insight].\n\nWhat do you think?`,
+  },
+];
+
+
 function ThreadsPreview({ content }: { content: string }) {
   return (
     <div className="glass-card p-4 space-y-3">
@@ -118,6 +195,12 @@ export default function ComposePage() {
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [isPublishing, setIsPublishing] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+
+  // Filter templates for current platform
+  const availableTemplates = POST_TEMPLATES.filter(
+    (t) => t.platform === "both" || t.platform === platform || platform === "both"
+  );
 
   const charLimit = platform === "linkedin" ? PLATFORM_LIMITS.linkedin : PLATFORM_LIMITS.threads;
   const charCount = content.length;
@@ -255,7 +338,56 @@ export default function ComposePage() {
             {p === "both" && "⚡ Both"}
           </button>
         ))}
+
+        {/* Template Toggle */}
+        <button
+          onClick={() => setShowTemplates(!showTemplates)}
+          className={cn(
+            "flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium transition-smooth",
+            showTemplates
+              ? "bg-neon-teal/20 text-neon-teal border border-neon-teal/30"
+              : "glass-card text-text-secondary hover:text-white"
+          )}
+        >
+          <BookOpen className="w-4 h-4" />
+          Templates
+        </button>
       </div>
+
+      {/* Template Selector */}
+      <AnimatePresence>
+        {showTemplates && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mb-4 overflow-hidden"
+          >
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-2">
+              {availableTemplates.map((t) => (
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    setContent(t.template);
+                    setShowTemplates(false);
+                  }}
+                  className="glass-card glass-card-hover p-3 text-left transition-smooth group"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-base">{t.icon}</span>
+                    <span className="text-sm font-medium text-white group-hover:text-neon-teal transition-colors">
+                      {t.label}
+                    </span>
+                  </div>
+                  <p className="text-xs text-text-secondary line-clamp-2">
+                    {t.description}
+                  </p>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Main Grid: Editor + Preview */}
       <div className="flex-1 grid grid-cols-1 lg:grid-cols-5 gap-6 min-h-0">

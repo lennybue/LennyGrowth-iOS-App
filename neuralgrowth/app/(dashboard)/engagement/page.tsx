@@ -250,6 +250,27 @@ function ReplyComposerModal({
             Cancel
           </button>
           <button
+            onClick={async () => {
+              if (!reply.trim()) return;
+              setIsPosting(true);
+              try {
+                const res = await fetch("/api/threads/publish", {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    content: reply,
+                    reply_to_id: post.threads_post_id,
+                  }),
+                });
+                if (res.ok) {
+                  onClose();
+                }
+              } catch {
+                // Keep modal open on failure
+              } finally {
+                setIsPosting(false);
+              }
+            }}
             disabled={!reply.trim() || isPosting}
             className="px-4 py-2 rounded-xl bg-neon-teal text-bg-primary text-sm font-medium hover:bg-neon-teal/90 glow-teal transition-smooth disabled:opacity-40"
           >

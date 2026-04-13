@@ -14,7 +14,7 @@ import {
 import { cn } from "@/lib/utils";
 import type { NicheTag, ToneType, Language } from "@/types";
 
-const TOTAL_STEPS = 4;
+const TOTAL_STEPS = 5;
 
 const NICHE_OPTIONS: { value: NicheTag; label: string }[] = [
   { value: "seo", label: "SEO" },
@@ -108,12 +108,14 @@ export default function OnboardingPage() {
   const canProceed = () => {
     switch (step) {
       case 1:
-        return threadsConnected;
+        return isAuthenticated;
       case 2:
-        return true; // LinkedIn is optional
+        return threadsConnected;
       case 3:
-        return selectedNiches.length > 0;
+        return true; // LinkedIn is optional
       case 4:
+        return selectedNiches.length > 0;
+      case 5:
         return true;
       default:
         return false;
@@ -196,8 +198,94 @@ export default function OnboardingPage() {
             transition={{ type: "spring", stiffness: 300, damping: 30 }}
             className="w-full"
           >
-            {/* Step 1: Connect Threads */}
+            {/* Step 1: Create Account */}
             {step === 1 && (
+              <div className="glass-card p-6 sm:p-8">
+                <div className="mb-6 text-center">
+                  <h2 className="text-xl font-semibold text-white">
+                    Create your account
+                  </h2>
+                  <p className="mt-2 text-sm text-text-secondary">
+                    Sign up to start using NeuralGrowth.
+                  </p>
+                </div>
+
+                {authError && (
+                  <div className="mb-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-2.5 text-sm text-red-400">
+                    {authError}
+                  </div>
+                )}
+
+                {isAuthenticated ? (
+                  <div className="flex items-center justify-center gap-2 rounded-xl bg-neon-teal/10 border border-neon-teal/30 py-3 text-sm font-medium text-neon-teal">
+                    <Check className="h-4 w-4" />
+                    Account created
+                  </div>
+                ) : (
+                  <form onSubmit={handleCreateAccount} className="space-y-4">
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-secondary">
+                        Email
+                      </label>
+                      <input
+                        type="email"
+                        required
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        placeholder="you@example.com"
+                        className={cn(
+                          "w-full rounded-xl bg-white/[0.04] border border-white/[0.08] py-2.5 px-4 text-sm text-white",
+                          "placeholder:text-text-secondary/60",
+                          "focus:outline-none focus:ring-2 focus:ring-neon-magenta/40 focus:border-neon-magenta/50",
+                          "transition-all"
+                        )}
+                      />
+                    </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-text-secondary">
+                        Password
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        minLength={6}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder="Minimum 6 characters"
+                        className={cn(
+                          "w-full rounded-xl bg-white/[0.04] border border-white/[0.08] py-2.5 px-4 text-sm text-white",
+                          "placeholder:text-text-secondary/60",
+                          "focus:outline-none focus:ring-2 focus:ring-neon-magenta/40 focus:border-neon-magenta/50",
+                          "transition-all"
+                        )}
+                      />
+                    </div>
+                    <button
+                      type="submit"
+                      disabled={isCreating}
+                      className={cn(
+                        "flex w-full items-center justify-center gap-2 rounded-xl bg-neon-magenta py-2.5 text-sm font-semibold text-white",
+                        "hover:bg-neon-magenta/90 active:scale-[0.98]",
+                        "disabled:opacity-60 disabled:cursor-not-allowed",
+                        "transition-all duration-200"
+                      )}
+                    >
+                      {isCreating ? (
+                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+                      ) : (
+                        <>
+                          Create Account
+                          <ArrowRight className="h-4 w-4" />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
+            )}
+
+            {/* Step 2: Connect Threads */}
+            {step === 2 && (
               <div className="glass-card p-6 sm:p-8">
                 <div className="mb-6 text-center">
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-white/[0.06]">
@@ -239,8 +327,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 2: Connect LinkedIn */}
-            {step === 2 && (
+            {/* Step 3: Connect LinkedIn */}
+            {step === 3 && (
               <div className="glass-card p-6 sm:p-8">
                 <div className="mb-6 text-center">
                   <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[#0A66C2]/20">
@@ -289,8 +377,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 3: Niche topics + tone + language */}
-            {step === 3 && (
+            {/* Step 4: Niche topics + tone + language */}
+            {step === 4 && (
               <div className="glass-card p-6 sm:p-8">
                 <div className="mb-5 text-center">
                   <h2 className="text-xl font-semibold text-white">
@@ -376,8 +464,8 @@ export default function OnboardingPage() {
               </div>
             )}
 
-            {/* Step 4: Success */}
-            {step === 4 && (
+            {/* Step 5: Success */}
+            {step === 5 && (
               <div className="glass-card p-6 sm:p-8 text-center">
                 <motion.div
                   initial={{ scale: 0 }}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ChevronLeft,
@@ -29,6 +29,7 @@ import {
   addMonths,
   subMonths,
 } from "date-fns";
+import { useRealtimePosts } from "@/hooks/use-realtime-posts";
 import type { Post, PostStatus } from "@/types";
 
 const STATUS_COLORS: Record<PostStatus, string> = {
@@ -45,8 +46,8 @@ const OPTIMAL_TIMES: Record<string, number[]> = {
   linkedin: [8, 9, 10],
 };
 
-// Mock posts for UI demonstration
-const MOCK_POSTS: (Post & { id: string })[] = [
+// Fallback posts shown when API is unavailable
+const FALLBACK_POSTS: Post[] = [
   {
     id: "1",
     user_id: "u1",
@@ -67,7 +68,7 @@ const MOCK_POSTS: (Post & { id: string })[] = [
     id: "2",
     user_id: "u1",
     content_threads: null,
-    content_linkedin: "3 years ago, I was burning €50k/month on Google Ads with a 0.8% CTR.\n\nToday: same budget, 3.2x conversion rate.\n\nThe difference? Not a magic trick — just 3 systematic changes...",
+    content_linkedin: "3 years ago, I was burning \u20ac50k/month on Google Ads with a 0.8% CTR.\n\nToday: same budget, 3.2x conversion rate.\n\nThe difference? Not a magic trick \u2014 just 3 systematic changes...",
     platforms: ["linkedin"],
     status: "published",
     post_type: "text",
@@ -166,7 +167,41 @@ export default function CalendarPage() {
   const [view, setView] = useState<"week" | "month">("week");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedPost, setSelectedPost] = useState<Post | null>(null);
-  const [posts] = useState<Post[]>(MOCK_POSTS);
+  const [posts, setPosts] = useState<Post[]>(FALLBACK_POSTS);
+
+  // Fetch real posts from API
+  const fetchPosts = useCallback(async () => {
+    try {
+      const res = await fetch("/api/posts?limit=100");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.posts && data.posts.length > 0) {
+          setPosts(data.posts);
+        }
+      }
+    } catch {
+      // Keep fallback data
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchPosts();
+  }, [fetchPosts]);
+
+  // Subscribe to Realtime post status changes
+  useRealtimePosts({
+    onPostChange({ eventType, new: newPost }) {
+      if (eventType === "INSERT" && newPost.id) {
+        setPosts((prev) => [newPost as Post, ...prev]);
+      } else if (eventType === "UPDATE" && newPost.id) {
+        setPosts((prev) =>
+          prev.map((p) => (p.id === newPost.id ? { ...p, ...newPost } : p))
+        );
+      } else if (eventType === "DELETE" && newPost.id) {
+        setPosts((prev) => prev.filter((p) => p.id !== newPost.id));
+      }
+    },
+  });
 
   const weekStart = startOfWeek(currentDate, { weekStartsOn: 1 });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
